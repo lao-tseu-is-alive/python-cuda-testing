@@ -1,74 +1,31 @@
 #!/usr/bin/python
 ###############################
-# scalar_matrix_multiply.py
+# main.py
 # testing pycuda to multiply an array by a scalar with gpu
 # https://documen.tician.de/pycuda/
 ###############################
-import sys
+import scalar_matrix_multiply as sm
 import numpy
-import pycuda
 import pycuda.driver as cuda
-import pycuda.autoinit
-from pycuda.compiler import SourceModule
-from timeit import default_timer as timer
+from timeit import timeit
 
-mod = SourceModule("""
-  __global__ void double_it(float *a)
-  {
-    int idx = threadIdx.x + threadIdx.y*4;
-    a[idx] *= 2;
-  }
-  """)
+line = 24
+col = 24
+num_repeats = 100
+func_double_it = sm.mod.get_function("double_it")
+a_input = sm.make_random_numpy_array(line, col)
+a_result_numpy = a_input * 2.0
+# testing numpy array multiply by scalar
+timer_numpy = timeit("a_input * 2.0", globals=globals(), number=num_repeats)
 
-
-def print_versions():
-    print(f'Python:\t {sys.version}')
-    print(f'Numpy :\t {numpy.version.version}')
-    print(f'PyCuda:\t {pycuda.VERSION_TEXT}')
-    print(f'Cuda  :\t {".".join(map(str, cuda.get_version()))}')
-    print(f'Driver:\t {cuda.get_driver_version()}')
-
-
-def make_random_numpy_array(lines, cols):
-    a = numpy.random.randn(lines, cols)
-    a = a.astype(numpy.float32)
-    return a
-
-
-def transfer_array_in_gpu(numpy_array):
-    a_gpu = cuda.mem_alloc(numpy_array.nbytes)
-    cuda.memcpy_htod(a_gpu, numpy_array)
-    return a_gpu
-
-
-if __name__ == '__main__':
-    print_versions()
-    line = 40
-    col = 40
-    func_double_it = mod.get_function("double_it")
-    a_input = make_random_numpy_array(line, col)
-
-    # start of numpy array multiply by scalar
-    start_numpy = timer()
-    a_result_numpy = a_input * 10.0
-    end_numpy = timer()
-    timer_numpy = end_numpy - start_numpy
-    # end of gpu array multiply by scalar using PyCuda
-
-    # start of gpu array multiply by scalar using PyCuda
-    start_gpu = timer()
-    gpuArray = transfer_array_in_gpu(a_input)
-    start_gpu_multiply = timer()
-    func_double_it(gpuArray, block=(4, 4, 1))
-    end_gpu_multiply = timer()
-    timer_gpu_multiply = end_gpu_multiply - start_gpu_multiply
-    a_result_gpu = numpy.empty_like(a_input)
-    cuda.memcpy_dtoh(a_result_gpu, gpuArray)
-    end_gpu = timer()
-    timer_gpu = end_gpu - start_gpu
-    # end of gpu array multiply by scalar using PyCuda
-    print("Matrix mult by scalar in GPU                       : {:.8f}".format(timer_gpu_multiply))
-    print("Matrix mult by scalar in GPU (Total with transfer) : {:.8f}".format(timer_gpu))
-    print("Matrix mult by scalar in numpy                     : {:.8f}".format(timer_numpy))
-    print("### compare arrays :")
-    print(a_result_gpu - a_result_gpu)
+# testing of gpu array multiply by scalar using PyCuda
+gpuArray = sm.transfer_array_in_gpu(a_input)
+timer_gpu_multiply = timeit("func_double_it(gpuArray, block=(24, 24, 1))", globals=globals(), number=num_repeats)
+# func_double_it(gpuArray, block=(32, 32, 1))
+a_result_gpu_timer = numpy.empty_like(a_input)
+cuda.memcpy_dtoh(a_result_gpu_timer, gpuArray)
+# end of gpu array multiply by scalar using PyCuda
+print("Matrix mult by scalar in GPU                       : {:.8f}".format(timer_gpu_multiply))
+# print("Matrix mult by scalar in GPU (Total with transfer) : {:.8f}".format(timer_gpu))
+print("Matrix mult by scalar in numpy                     : {:.8f}".format(timer_numpy))
+print(a_result_gpu_timer / a_result_numpy)
