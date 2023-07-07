@@ -1,2 +1,2 @@
 # python-cuda-testing
-using cuda to evaluate performance 
+python cuda performance compared to numpy  
