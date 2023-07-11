@@ -1,5 +1,5 @@
 ###############################
-# scalar_matrix_multiply.py
+# scalar_matrix_multiply_with_pycuda.py
 # testing pycuda to multiply an array by a scalar with gpu
 # https://documen.tician.de/pycuda/
 ###############################
@@ -15,7 +15,7 @@ from timeit import default_timer as timer
 mod = SourceModule("""
   __global__ void double_it(float *a)
   {
-    int idx = threadIdx.x + threadIdx.y*24;
+    int idx = threadIdx.x + threadIdx.y*12;
     a[idx] *= 2;
   }
   """)
@@ -47,8 +47,8 @@ def get_gpu_array_ref(numpy_array):
 
 if __name__ == '__main__':
     print_versions()
-    line = 24
-    col = 24
+    line = 12
+    col = 12
     func_double_it = mod.get_function("double_it")
     a_input = make_random_numpy_array(line, col)
 
@@ -63,7 +63,7 @@ if __name__ == '__main__':
     start_gpu = timer()
     gpuArray = transfer_array_in_gpu(a_input)
     start_gpu_multiply = timer()
-    func_double_it(gpuArray, block=(24, 24, 1))
+    func_double_it(gpuArray, block=(12, 12, 1))
     end_gpu_multiply = timer()
     timer_gpu_multiply = end_gpu_multiply - start_gpu_multiply
     a_result_gpu = numpy.empty_like(a_input)
